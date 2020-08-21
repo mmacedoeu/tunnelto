@@ -110,6 +110,7 @@ fn validate_host_prefix(host: &str) -> Option<String> {
     if ALLOWED_HOSTS.contains(remaining) {
         Some(prefix.to_string())
     } else {
+        warn!("invalid host suffix: ALLOWED_HOSTS: {:?}, remaining: {:?}", *ALLOWED_HOSTS, remaining);
         None
     }
 }
