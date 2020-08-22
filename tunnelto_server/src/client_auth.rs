@@ -90,7 +90,7 @@ async fn auth_client(client_hello_data: &[u8], mut websocket: WebSocket) -> Opti
 
 
     // next authenticate the sub-domain
-    let sub_domain = match crate::AUTH_DB_SERVICE.auth_sub_domain(&auth_key.0, &requested_sub_domain).await {
+    let sub_domain = match env_auth_sub_domain(&auth_key.0, &requested_sub_domain).await {
         Ok(AuthResult::Available) | Ok(AuthResult::ReservedByYou) => requested_sub_domain,
         Ok(AuthResult::ReservedByOther) => {
             let data = serde_json::to_vec(&ServerHello::SubDomainInUse).unwrap_or_default();
@@ -107,6 +107,20 @@ async fn auth_client(client_hello_data: &[u8], mut websocket: WebSocket) -> Opti
 
     Some((websocket, ClientHandshake { id: client_hello.id, sub_domain, is_anonymous: false }))
 }
+
+pub fn allowed_auth_key() -> Vec<String> {
+    std::env::var("ALLOWED_AUTH_KEYS")
+        .map(|s| s.split(",").map(String::from).collect())
+        .unwrap_or(vec![])
+}
+
+pub async fn env_auth_sub_domain(auth_key: &str, subdomain: &str) -> Result<AuthResult, crate::auth_db::Error> {
+    if allowed_auth_key().contains(&auth_key.into()) {
+        return Ok(AuthResult::ReservedByYou);
+    } else {
+        return Ok(AuthResult::ReservedByOther);
+    }
+}    
 
 async fn sanitize_sub_domain_and_pre_validate(mut websocket: WebSocket, requested_sub_domain: String, client_id: &ClientId) -> Option<(WebSocket, String)>{
     // ignore uppercase
